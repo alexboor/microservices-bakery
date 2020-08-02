@@ -1,0 +1,26 @@
+http:
+  # Add the router
+  routers:
+    router:
+      entryPoints:
+      - web
+      service: kafdrop
+      rule: PathPrefix(`/kafka/`)
+
+    router0:
+      entryPoints:
+      - web
+      middlewares:
+      #- my-basic-auth
+      service: static-ui
+      rule: PathPrefix(`/`)
+
+  services:
+    static-ui:
+      loadBalancer:
+        servers:
+        - url: "http://192.168.16.103:8000/"
+    kafdrop:
+      loadBalancer:
+        servers:
+        - url: "http://kafkadrop:9000/"        

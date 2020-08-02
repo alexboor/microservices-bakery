@@ -1,0 +1,82 @@
+version: "3.3"
+
+services:
+
+  traefik:
+    image: "traefik:v2.2"
+    container_name: "traefik"
+    command:
+      #- "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "$PWD/traefik/traefik.yml:/etc/traefik/traefik.yml"
+      - "$PWD/traefik/conf:/etc/traefik/conf"
+      
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.0.0
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    env_file:
+      - "$PWD/zookeeper/zookeeper.env"
+    healthcheck:
+      test: /bin/sh -c '[ \"imok\" = \"$$(echo ruok | nc -w 1 127.0.0.1 2181)\" ]' || exit 1
+      interval: 1m
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data/
+      - zookeeper-log:/var/lib/zookeeper/log/
+      
+  kafka:
+    image: confluentinc/cp-kafka:5.0.0
+    hostname: kafka
+    container_name: kafka
+    stop_grace_period: 3m
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    env_file:
+      - "$PWD/kafka/kafka.env"
+    volumes:
+      - kafka-data:/var/lib/kafka/data/
+      
+  schema-registry:
+    image: confluentinc/cp-schema-registry:5.0.0
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      - zookeeper
+      - kafka
+    ports:
+      - "8081:8081"
+    env_file:
+      - "$PWD/schema-registry/schema-registry.env"
+  
+  kafkadrop:
+    image: obsidiandynamics/kafdrop
+    hostname: kafkadrop
+    container_name: kafkadrop
+    ports:
+      - "8999:9000"
+    environment:
+      KAFKA_BROKERCONNECT: "kafka:9092"
+      JVM_OPTS: "-Xms16M -Xmx48M -Xss180K -XX:-TieredCompilation -XX:+UseStringDeduplication -noverify"
+    depends_on:
+      - "kafka"
+      - "zookeeper"
+
+volumes:
+    zookeeper-data:
+    zookeeper-log:
+    kafka-data:
+    
+    
